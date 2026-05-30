@@ -96,8 +96,10 @@ async function buildStoryboardSlide(tempRoot, projectDir, data, shots, pageNumbe
   const endShot = shots.at(-1).shot.toString().padStart(2, "0");
   const totalSeconds = Math.round(data.durationSeconds);
 
-  texts.push(textBox(0.25, 0.25, 12.85, 0.45, `《CHAQI 茶气纯茶》${totalSeconds}s 商业短视频故事板`, 25, "222222", true, "center"));
-  texts.push(textBox(0.25, 0.83, 12.85, 0.26, `影调风格：冷灰自然窗光  |  茶饮冲泡生活方式  |  分镜画幅：9:16 竖屏  |  故事板画幅：16:9 横版  |  镜头 ${startShot}-${endShot} / 第 ${pageNumber} 页`, 9.5, "555555", false, "center"));
+  const boardTitle = data.storyboardTitle || `${data.title || data.project} ${totalSeconds}s 故事板`;
+  const boardSubtitle = data.boardSubtitle || `影调风格：自然光影  |  分镜画幅：9:16 竖屏  |  故事板画幅：16:9 横版  |  镜头 ${startShot}-${endShot} / 第 ${pageNumber} 页`;
+  texts.push(textBox(0.25, 0.25, 12.85, 0.45, boardTitle, 25, "222222", true, "center"));
+  texts.push(textBox(0.25, 0.83, 12.85, 0.26, boardSubtitle, 9.5, "555555", false, "center"));
 
   const marginX = 0.22;
   const gap = 0.08;
@@ -123,18 +125,19 @@ async function buildStoryboardSlide(tempRoot, projectDir, data, shots, pageNumbe
 
     const time = `${formatSeconds(shot.start)}-${formatSeconds(shot.end)}s`;
     texts.push(textBox(x, captionY, 0.33, 0.24, shot.shot.toString().padStart(2, "0"), 15, "222222", true, "left"));
-    texts.push(textBox(x + 0.36, captionY + 0.02, cardW - 0.36, 0.2, `${shotTitle(shot.shot)}  |  ${time}`, 7.2, "333333", false, "left"));
+    texts.push(textBox(x + 0.36, captionY + 0.02, cardW - 0.36, 0.2, `${shotTitle(shot)}  |  ${time}`, 7.2, "333333", false, "left"));
     texts.push(textBox(x + 0.01, captionY + 0.36, cardW - 0.02, 0.22, compactScale(shot.scaleAngle), 7.1, "333333", false, "center"));
     texts.push(textBox(x + 0.01, captionY + 0.72, cardW - 0.02, 0.72, compactDescription(shot), 7.0, "333333", false, "left"));
   }
 
   lineShapes.push(line(0.18, 6.63, 13.15, 6.63, "BFBFBF", 0.6));
-  const footerLeft = pageNumber === 1
-    ? "拍摄建议\n自然窗光为主  |  低照度冷灰调  |  大光圈浅景深  |  手部动作慢节奏"
-    : "视觉总结\n黑木纹桌面、米白陶瓷、玻璃壶与灰蓝背景反复出现，橙色包装承担品牌识别。";
-  const footerRight = pageNumber === 1
-    ? "声音设计\n包装撕裂  |  茶包摩擦  |  热水注入  |  轻微蒸汽与室内环境底噪"
-    : "剪辑节奏\n从拆封到冲泡再到饮用，步骤清楚；中后段用蒸汽和阅读场景把功能转为情绪。";
+  const footer = data.boardFooters?.[pageNumber - 1] || {};
+  const footerLeft = footer.left || (pageNumber === 1
+    ? "拍摄建议\n自然光优先  |  保留环境声  |  大光圈浅景深  |  让主体动作慢下来"
+    : `视觉总结\n${clipText(data.visualSummary, 78)}`);
+  const footerRight = footer.right || (pageNumber === 1
+    ? "声音设计\n环境底噪  |  风声与衣料摩擦  |  水声或道具声  |  轻音乐托底"
+    : "剪辑节奏\n按场景建立、主体动作、质感特写、情绪收束组织镜头，保持呼吸感。");
   texts.push(textBox(0.6, 6.88, 5.25, 0.42, footerLeft, 8.5, "333333", false, "left"));
   texts.push(textBox(6.15, 6.88, 6.55, 0.42, footerRight, 8.5, "333333", false, "left"));
   lineShapes.push(line(5.95, 6.82, 5.95, 7.28, "C9C9C9", 0.5));
@@ -142,22 +145,8 @@ async function buildStoryboardSlide(tempRoot, projectDir, data, shots, pageNumbe
   return { pictures, texts, lineShapes, nextMediaIndex: mediaIndex };
 }
 
-function shotTitle(shotNumber) {
-  return [
-    "暗场开篇",
-    "包装展示",
-    "撕开茶包",
-    "取出茶包",
-    "茶包入杯",
-    "产品定格",
-    "注水开始",
-    "热水蒸汽",
-    "茶汤静置",
-    "茶席留白",
-    "阅读场景",
-    "蒸汽呼吸",
-    "端杯收尾",
-  ][shotNumber - 1] || "镜头";
+function shotTitle(shot) {
+  return shot.title || shot.boardTitle || "镜头";
 }
 
 function compactScale(value) {
@@ -165,22 +154,7 @@ function compactScale(value) {
 }
 
 function compactDescription(shot) {
-  const descriptions = {
-    1: "暗光窗边茶席中，手持茶盒进入画面；花瓶、书本、杯具先建立安静居家氛围。",
-    2: "双手托起白色 CHAQI 包装，橙色茶杯图形成为暖色焦点；背景茶具柔焦。",
-    3: "指尖撕开独立茶包外袋，包装褶皱与手部细节强化现泡触感。",
-    4: "从外袋中取出三角茶包，白色标签和深色茶叶颗粒居中展示。",
-    5: "茶包悬在米色马克杯上方，黑色桌面衬出陶瓷杯和托盘的干净轮廓。",
-    6: "茶盒放在浅色画册上，窗光从上方压亮盒盖，形成产品静物定格。",
-    7: "热水从玻璃壶嘴注入杯中，茶包线挂在杯壁外，动作进入冲泡阶段。",
-    8: "侧拍持续注水，水流与大片蒸汽形成最强动态，传达热度和香气。",
-    9: "茶汤静置到杯口，蒸汽缓慢上升，镜头从功能动作转入情绪停顿。",
-    10: "白色波纹小碗前景清晰，后景茶包与包装虚化，补足茶席留白。",
-    11: "茶杯、打开的书页、包装盒和玻璃壶构成阅读桌面，呈现饮用场景。",
-    12: "杯口和蒸汽被故意虚焦，亮窗与暗家具形成抽象光影呼吸。",
-    13: "手握杯把端起热茶，背景回收花瓶、茶盒、玻璃壶，完成饮用收束。",
-  };
-  return descriptions[shot.shot] || shot.content;
+  return shot.boardContent || shot.caption || clipText(shot.content, 76);
 }
 
 function slideXml(slide) {
@@ -480,6 +454,14 @@ function xmlEscape(value) {
 
 function mdCell(value) {
   return String(value).replaceAll("|", "\\|").replace(/\r?\n/g, "<br>");
+}
+
+function clipText(value, maxLength) {
+  const text = String(value || "").replace(/\s+/g, "");
+  if (text.length <= maxLength) {
+    return text;
+  }
+  return `${text.slice(0, maxLength - 1)}…`;
 }
 
 function inchToEmu(value) {
